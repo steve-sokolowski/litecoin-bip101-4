@@ -127,6 +127,20 @@ public:
         nTargetSpacing = 2.5 * 60; // 2.5 minutes
         nMaxTipAge = 24 * 60 * 60;
 
+        // Timestamps for forking consensus rule changes:
+        //  Allow bigger blocks
+        //  Limit transactions to 100,000 bytes
+        nEarliestSizeForkTime = 1457654400; // 11 Mar 2016 00:00:00 UTC
+        // 1MB max blocks before 11 Mar 2016
+        // Then, if miner consensus: 2MB max, doubling every two years
+        nMaxSizePreFork = 1000*1000; // 1MB max pre-fork
+        nSizeDoubleEpoch = 60*60*24*365*2; // two years
+        nMaxSizeBase = 2*1000*1000; // 2MB
+        nMaxSizeDoublings = 10;
+        nActivateSizeForkMajority = 750; // 75% of hashpower to activate fork
+        nSizeForkGracePeriod = 60*60*24*14; // two week grace period after activation
+
+
         /**
          * Build the genesis block. Note that the output of the genesis coinbase cannot
          * be spent as it did not originally exist in the database.
@@ -212,6 +226,17 @@ public:
         nTargetSpacing = 2.5 * 60; // 2.5 minutes
         nMaxTipAge = 0x7fffffff;
 
+        // 1MB max blocks before 1 Aug 2015
+        // Then, if miner consensus: 2MB max, doubling every two years
+        nMaxSizePreFork = 1000*1000; // 1MB max pre-fork
+        nEarliestSizeForkTime = 1438387200; // 1 Aug 2015 00:00:00 UTC
+        nSizeDoubleEpoch = 60*60*24*365*2; // two years
+        nMaxSizeBase = 2*1000*1000; // 2MB
+        nMaxSizeDoublings = 10;
+        nActivateSizeForkMajority = 75; // 75 of 100 to activate fork
+        nSizeForkGracePeriod = 60*60*24; // 1-day grace period
+
+
         //! Modify the testnet genesis block so the timestamp is valid for a later start.
         genesis.nTime = 1317798646;
         genesis.nNonce = 385270584;
@@ -263,9 +288,9 @@ public:
         pchMessageStart[2] = 0xb5;
         pchMessageStart[3] = 0xda;
         nSubsidyHalvingInterval = 150;
-        nEnforceBlockUpgradeMajority = 750;
-        nRejectBlockOutdatedMajority = 950;
-        nToCheckBlockUpgradeMajority = 1000;
+        nEnforceBlockUpgradeMajority = 75;
+        nRejectBlockOutdatedMajority = 95;
+        nToCheckBlockUpgradeMajority = 100;
         nMinerThreads = 1;
         nTargetTimespan = 3.5 * 24 * 60 * 60; // 3.5 days
         nTargetSpacing = 2.5 * 60; // 2.5 minutes

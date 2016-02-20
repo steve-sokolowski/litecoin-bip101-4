@@ -10,6 +10,9 @@
 #include "serialize.h"
 #include "uint256.h"
 
+/** Blocks with version fields that have these bits set activate the bigger-block fork */
+const int32_t SIZE_FORK_VERSION = 5;
+
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
 
@@ -24,7 +27,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int32_t CURRENT_VERSION=4;
+    static const int32_t CURRENT_VERSION=SIZE_FORK_VERSION;
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;

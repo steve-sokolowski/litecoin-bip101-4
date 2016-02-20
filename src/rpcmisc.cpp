@@ -374,5 +374,10 @@ Value setmocktime(const Array& params, bool fHelp)
     RPCTypeCheck(params, boost::assign::list_of(int_type));
     SetMockTime(params[0].get_int64());
 
+    uint64_t t = GetTime();
+    BOOST_FOREACH(CNode* pnode, vNodes) {
+        pnode->nLastSend = pnode->nLastRecv = t;
+    }
+
     return Value::null;
 }

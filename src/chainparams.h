@@ -83,6 +83,38 @@ public:
 
     // Litecoin: Height to enforce v2 block
     int EnforceV2AfterHeight() const { return nEnforceV2AfterHeight; }
+
+    /** Maximum block size of a block with timestamp nBlockTimestamp */
+    uint64_t MaxBlockSize(uint64_t nBlockTimestamp, uint64_t nSizeForkActivationTime) const {
+        if (nBlockTimestamp < nEarliestSizeForkTime || nBlockTimestamp < nSizeForkActivationTime)
+            return nMaxSizePreFork;
+        if (nBlockTimestamp >= nEarliestSizeForkTime + nSizeDoubleEpoch * nMaxSizeDoublings)
+            return nMaxSizeBase << nMaxSizeDoublings;
+
+        // Piecewise-linear-between-doublings growth. Calculated based on a fixed
+        // timestamp and not the activation time so the maximum size is
+        // predictable, and so the activation time can be completely removed in
+        // a future version of this code after the fork is complete.
+        uint64_t timeDelta = nBlockTimestamp - nEarliestSizeForkTime;
+        uint64_t doublings = timeDelta / nSizeDoubleEpoch;
+        uint64_t remain = timeDelta % nSizeDoubleEpoch;
+        uint64_t interpolate = (nMaxSizeBase << doublings) * remain / nSizeDoubleEpoch;
+        uint64_t nMaxSize = (nMaxSizeBase << doublings) + interpolate;
+        return nMaxSize;
+    }
+    /** Maximum number of signature ops in a block with timestamp nBlockTimestamp */
+    uint64_t MaxBlockSigops(uint64_t nBlockTimestamp, uint64_t nSizeForkActivationTime) const {
+        return MaxBlockSize(nBlockTimestamp, nSizeForkActivationTime)/50;
+    }
+    /** Maximum size of a transaction in a block with timestamp nBlockTimestamp */
+    uint64_t MaxTransactionSize(uint64_t nBlockTimestamp, uint64_t nSizeForkActivationTime) const {
+        if (nBlockTimestamp < nEarliestSizeForkTime || nBlockTimestamp < nSizeForkActivationTime)
+            return nMaxSizePreFork;
+        return 100*1000;
+    }
+    int ActivateSizeForkMajority() const { return nActivateSizeForkMajority; }
+    uint64_t SizeForkGracePeriod() const { return nSizeForkGracePeriod; }
+
 protected:
     CChainParams() {}
 
@@ -96,6 +128,16 @@ protected:
     int nEnforceBlockUpgradeMajority;
     int nRejectBlockOutdatedMajority;
     int nToCheckBlockUpgradeMajority;
+
+    /** Maximum block size parameters */
+    uint32_t nMaxSizePreFork;
+    uint64_t nEarliestSizeForkTime;
+    uint32_t nSizeDoubleEpoch;
+    uint64_t nMaxSizeBase;
+    uint8_t nMaxSizeDoublings;
+    int nActivateSizeForkMajority;
+    uint64_t nSizeForkGracePeriod;
+
     int64_t nTargetTimespan;
     int64_t nTargetSpacing;
     int nMinerThreads;

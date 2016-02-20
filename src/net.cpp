@@ -12,6 +12,7 @@
 #include "addrman.h"
 #include "chainparams.h"
 #include "clientversion.h"
+#include "crypto/common.h"
 #include "primitives/transaction.h"
 #include "ui_interface.h"
 
@@ -580,10 +581,8 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes)
         if (handled < 0)
                 return false;
 
-        if (msg.in_data && msg.hdr.nMessageSize > MAX_PROTOCOL_MESSAGE_LENGTH) {
-            LogPrint("net", "Oversized message from peer=%i, disconnecting\n", GetId());
+        if (msg.in_data && !g_signals.SanityCheckMessages(this, boost::ref(msg)))
             return false;
-        }
 
         pch += handled;
         nBytes -= handled;
@@ -624,6 +623,22 @@ int CNetMessage::readHeader(const char *pch, unsigned int nBytes)
     in_data = true;
 
     return nCopy;
+}
+
+unsigned int CNetMessage::FinalizeHeader(CDataStream& s)
+{
+    // Set the size
+    unsigned int nSize = s.size() - CMessageHeader::HEADER_SIZE;
+    WriteLE32((uint8_t*)&s[CMessageHeader::MESSAGE_SIZE_OFFSET], nSize);
+
+    // Set the checksum
+    uint256 hash = Hash(s.begin() + CMessageHeader::HEADER_SIZE, s.end());
+    unsigned int nChecksum = 0;
+    memcpy(&nChecksum, &hash, sizeof(nChecksum));
+    assert(s.size () >= CMessageHeader::CHECKSUM_OFFSET + sizeof(nChecksum));
+    memcpy((char*)&s[CMessageHeader::CHECKSUM_OFFSET], &nChecksum, sizeof(nChecksum));
+
+    return nSize;
 }
 
 int CNetMessage::readData(const char *pch, unsigned int nBytes)
@@ -2091,17 +2106,7 @@ void CNode::EndMessage() UNLOCK_FUNCTION(cs_vSend)
     if (ssSend.size() == 0)
         return;
 
-    // Set the size
-    unsigned int nSize = ssSend.size() - CMessageHeader::HEADER_SIZE;
-    memcpy((char*)&ssSend[CMessageHeader::MESSAGE_SIZE_OFFSET], &nSize, sizeof(nSize));
-
-    // Set the checksum
-    uint256 hash = Hash(ssSend.begin() + CMessageHeader::HEADER_SIZE, ssSend.end());
-    unsigned int nChecksum = 0;
-    memcpy(&nChecksum, &hash, sizeof(nChecksum));
-    assert(ssSend.size () >= CMessageHeader::CHECKSUM_OFFSET + sizeof(nChecksum));
-    memcpy((char*)&ssSend[CMessageHeader::CHECKSUM_OFFSET], &nChecksum, sizeof(nChecksum));
-
+    unsigned int nSize = CNetMessage::FinalizeHeader(ssSend);
     LogPrint("net", "(%d bytes) peer=%d\n", nSize, id);
 
     std::deque<CSerializeData>::iterator it = vSendMsg.insert(vSendMsg.end(), CSerializeData());

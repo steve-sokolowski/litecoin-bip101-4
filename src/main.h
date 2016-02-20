@@ -58,16 +58,14 @@ static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 17000;
 static const bool DEFAULT_ALERTS = true;
 /** The maximum size for transactions we're willing to relay/mine */
 static const unsigned int MAX_STANDARD_TX_SIZE = 100000;
-/** The maximum allowed number of signature check operations in a block (network rule) */
-static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 /** Maximum number of signature check operations in an IsStandard() P2SH script */
 static const unsigned int MAX_P2SH_SIGOPS = 15;
 /** The maximum number of sigops we're willing to relay/mine in a single tx */
-static const unsigned int MAX_TX_SIGOPS = MAX_BLOCK_SIGOPS/5;
+static const unsigned int MAX_TX_SIGOPS = MAX_STANDARD_TX_SIZE/25;
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
-/** The maximum size of a blk?????.dat file (since 0.8) */
-static const unsigned int MAX_BLOCKFILE_SIZE = 0x8000000; // 128 MiB
+/** Minimum number of max-sized blocks in blk?????.dat files */
+static const unsigned int MIN_BLOCKFILE_BLOCKS = 128;
 /** The pre-allocation chunk size for blk?????.dat files (since 0.8) */
 static const unsigned int BLOCKFILE_CHUNK_SIZE = 0x1000000; // 16 MiB
 /** The pre-allocation chunk size for rev?????.dat files (since 0.8) */
@@ -94,6 +92,9 @@ static const unsigned int BLOCK_DOWNLOAD_WINDOW = 1024;
 static const unsigned int DATABASE_WRITE_INTERVAL = 3600;
 /** Maximum length of reject messages. */
 static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
+/** Maximum length of incoming protocol messages (no message over 2 MiB is currently acceptable). */
+static const unsigned int MAX_PROTOCOL_MESSAGE_LENGTH = 2 * 1024 * 1024;
+
 
 /** Litecoin: Dust Threshold: outputs below this value in satoshis are assessed an additional 1000 bytes per txout */
 static const CAmount DUST_THRESHOLD = 100000; // 0.001 LTC
@@ -102,6 +103,9 @@ static const CAmount DEFAULT_TX_FEE = 100000; // 0.001 LTC
 
 /** Litecoin: default minimum input threshold, override with -mininput */
 static const CAmount DEFAULT_MINIMUM_INPUT_THRESHOLD = DUST_THRESHOLD / 100; // 0.00001 LTC
+
+/** The minimum size of a transaction, in bytes **/
+static const unsigned int MIN_TRANSACTION_SIZE = 60;
 
 /** "reject" message codes */
 static const unsigned char REJECT_MALFORMED = 0x01;
@@ -308,7 +312,7 @@ bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsVi
 void UpdateCoins(const CTransaction& tx, CValidationState &state, CCoinsViewCache &inputs, CTxUndo &txundo, int nHeight);
 
 /** Context-independent validity checks */
-bool CheckTransaction(const CTransaction& tx, CValidationState& state);
+bool CheckTransaction(const CTransaction& tx, CValidationState& state, uint64_t nMaxTransactionSize);
 
 /** Check for standard transaction types
  * @return True if all outputs (scriptPubKeys) use only standard transaction forms
@@ -572,5 +576,22 @@ protected:
     friend void ::UnregisterValidationInterface(CValidationInterface*);
     friend void ::UnregisterAllValidationInterfaces();
 };
+
+// Time when bigger-than-1MB-blocks are allowed
+class SizeForkTime {
+public:
+    SizeForkTime(uint64_t _t);
+
+    // Same interface as std::atomic -- when c++11 is supported,
+    // this class can go away and sizeForkTime can just be type
+    // std::atomic<uint64_t>
+    uint64_t load() const;
+    void store(uint64_t _t);
+private:
+    mutable CCriticalSection cs;
+    uint64_t t;
+};
+extern SizeForkTime sizeForkTime;
+
 
 #endif // BITCOIN_MAIN_H
